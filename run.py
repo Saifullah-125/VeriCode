@@ -60,4 +60,4 @@ if __name__ == "__main__":
         print("\nERROR: app.py could not start. Read the error above (missing module or folder).")
         sys.exit(1)
     print(f"Secure Compiler running at {URL}  (press Ctrl+C to stop)")
-    app.run(port=5000, debug=False, use_reloader=False)
+    app.run(port=5000, debug=False, use_reloader=False, threaded=False)

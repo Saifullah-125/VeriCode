@@ -112,16 +112,20 @@ let lang=null,last=null;
 /* hero: letters scramble into place once on load */
 (()=>{const el=$('#hero'),t=el.textContent,ch='!<>-_\\/[]{}=+*^?#';let f=0;
  const id=setInterval(()=>{el.textContent=[...t].map((c,i)=>i<f/2?c:(c===' '?' ':ch[Math.random()*ch.length|0])).join('');if(++f>t.length*2+2){clearInterval(id);el.textContent=t}},38)})();
-document.querySelectorAll('.lang').forEach(c=>{tilt(c);const pick=()=>{document.querySelectorAll('.lang').forEach(x=>x.classList.remove('on'));c.classList.add('on');lang=c.dataset.l;blip(520);pulse()};c.onclick=pick;c.onkeydown=e=>e.key==='Enter'&&pick()});
+document.querySelectorAll('.lang').forEach(c=>{tilt(c);const pick=()=>{document.querySelectorAll('.lang').forEach(x=>x.classList.remove('on'));c.classList.add('on');lang=c.dataset.l;blip(520);pulse();DEMO++;const ta=$('#code'),v=ta.value.trim();
+  if(Object.values(SAMPLES).some(s=>s.trim()===v))ta.value='';$('#res').style.display='none';$('#err').innerHTML='';stop()};c.onclick=pick;c.onkeydown=e=>e.key==='Enter'&&pick()});
 $('#sample').onclick=()=>{if(!lang)return showErr('Choose a language first.');$('#code').value=SAMPLES[lang];$('#err').innerHTML='';blip(700)};
-$('#demo').onclick=async()=>{const ks=Object.keys(SAMPLES),l=ks[Math.random()*4|0];document.querySelector(`.lang[data-l="${l}"]`).click();const t=SAMPLES[l],ta=$('#code');ta.value='';
- for(let k=0;k<t.length;k+=2){ta.value+=t.slice(k,k+2);ta.scrollTop=1e5;if(k%6===0)blip(300+Math.random()*500);await new Promise(r=>setTimeout(r,16))}$('#go').click()};
+let DEMO=0;
+$('#demo').onclick=async()=>{if(!lang)return showErr('Choose a language first, then press Auto demo.');
+ const my=++DEMO,t=SAMPLES[lang],ta=$('#code');ta.value='';$('#err').innerHTML='';
+ for(let k=0;k<t.length&&my===DEMO;k+=2){ta.value+=t.slice(k,k+2);ta.scrollTop=1e5;if(k%6===0)blip(300+Math.random()*500);await new Promise(r=>setTimeout(r,16))}
+ if(my===DEMO)$('#go').click()};
 addEventListener('keydown',e=>{if(e.ctrlKey&&e.key==='Enter')$('#go').click()});
-$('#clear').onclick=()=>{$('#code').value='';$('#res').style.display='none';$('#err').innerHTML=''};
+$('#clear').onclick=()=>{DEMO++;$('#code').value='';$('#res').style.display='none';$('#err').innerHTML='';stop();TT=[]};
 $('#file').onchange=e=>{const f=e.target.files[0];if(!f)return;const x=f.name.split('.').pop().toLowerCase();
  const m={c:'c',h:'cpp',hpp:'cpp',cpp:'cpp',cc:'cpp',cxx:'cpp',py:'python',java:'java'}[x];
  if(m){lang=m;document.querySelectorAll('.lang').forEach(c=>c.classList.toggle('on',c.dataset.l===m))}
- const r=new FileReader();r.onload=()=>$('#code').value=r.result;r.readAsText(f)};
+ const r=new FileReader();r.onload=()=>$('#code').value=r.result;r.readAsText(f);e.target.value=''};
 const sfx=(()=>{let c;const A=()=>c||(c=new (window.AudioContext||window.webkitAudioContext)());
 const tone=(t,f,d,v,f2)=>{const a=A(),o=a.createOscillator(),g=a.createGain();o.type=t;o.frequency.setValueAtTime(f,a.currentTime);if(f2)o.frequency.linearRampToValueAtTime(f2,a.currentTime+d);g.gain.setValueAtTime(v,a.currentTime);g.gain.exponentialRampToValueAtTime(.0001,a.currentTime+d);o.connect(g).connect(a.destination);o.start();o.stop(a.currentTime+d)};
 return{tick:()=>tone('square',1200,.04,.03),beep:f=>tone('square',f,.12,.05),siren(){for(let k=0;k<4;k++)setTimeout(()=>tone('sawtooth',500,.4,.06,900),k*400);tone('sine',70,.8,.4,35)},chime(){[523,659,784,1047].forEach((f,k)=>setTimeout(()=>tone('sine',f,.8,.08),k*130))}}})();
@@ -177,14 +181,14 @@ const wait=ms=>new Promise(r=>setTimeout(r,skip?0:ms/S.speed)),gate=()=>(skip||!
 const tk=()=>S.snd&&sfx.tick();
 function narr(t,i,n){$('#narr').innerHTML=t;$('#prog').style.width=(n?100*i/n:0)+'%'}
 function stop(){RID++;paused=false;skip=false;go();$('#bPa').textContent='Pause'}
-async function seq(items,fn,ms,label){const id=++RID;skip=false;for(let k=0;k<items.length;k++){if(id!==RID)return;if(k)await gate();if(id!==RID)return;await fn(items[k],k,items.length);await wait(ms)}if(id===RID)narr('Finished: '+label+'. Press Replay to watch again.',1,1)}
+async function seq(items,fn,ms,label){const T=TT[cur],id=++RID,s=T.pos||0;skip=false;for(let k=s;k<items.length;k++){if(id!==RID)return;if(k>s)await gate();if(id!==RID)return;await fn(items[k],k,items.length);if(id!==RID)return;T.pos=k+1;await wait(ms)}if(id===RID){T.done=true;narr('Finished: '+label+'. It stays built until you press Clear. Press Replay to watch it again.',1,1)}}
 function applySet(){const p=document.querySelector('.page');p.style.zoom=S.fs;p.style.maxWidth=S.wide?'none':'';
  $('#sFs').value=S.fs;$('#sSp').value=S.speed;$('#vSp').textContent=S.speed+'x';$('#sMode').value=S.step?1:0;$('#sWd').checked=S.wide;$('#sSn').checked=S.snd;
  try{localStorage.setItem('sc-set',JSON.stringify(S))}catch(e){}}
 $('#sFs').oninput=e=>{S.fs=+e.target.value;$('#sPre').value='';applySet()};$('#sSp').oninput=e=>{S.speed=+e.target.value;applySet()};
 $('#sMode').onchange=e=>{S.step=e.target.value==='1';if(!S.step)go();applySet()};$('#sWd').onchange=e=>{S.wide=e.target.checked;applySet()};$('#sSn').onchange=e=>{S.snd=e.target.checked;applySet()};
 $('#sPre').onchange=e=>{const P={laptop:{fs:1,wide:false,speed:1},proj:{fs:1.35,wide:true,speed:.75},mobile:{fs:.85,wide:false,speed:1}}[e.target.value];if(P){Object.assign(S,P);applySet()}};
-$('#bPa').onclick=e=>{paused=!paused;e.target.textContent=paused?'Resume':'Pause';if(!paused)go()};$('#bNx').onclick=go;$('#bSk').onclick=()=>{skip=true;go()};$('#bRe').onclick=()=>show(cur);
+$('#bPa').onclick=e=>{paused=!paused;e.target.textContent=paused?'Resume':'Pause';if(!paused)go()};$('#bNx').onclick=go;$('#bSk').onclick=()=>{skip=true;go()};$('#bRe').onclick=()=>{const t=TT[cur];if(t){t.pos=0;t.done=false}show(cur)};
 applySet();
 function buildTabs(d){const code=$('#code').value;
  TT=[{n:'Findings',h:fin(d.findings||[])}];
@@ -196,22 +200,24 @@ function buildTabs(d){const code=$('#code').value;
  $('#panes').innerHTML=TT.map((t,k)=>`<div class="pane">${t.h}</div>`).join('');
  document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>show(+b.dataset.i));show(0)}
 function show(k){cur=k;stop();document.querySelectorAll('.tab,.pane').forEach(x=>x.classList.remove('on'));document.querySelectorAll('.tab')[k].classList.add('on');document.querySelectorAll('.pane')[k].classList.add('on');
- narr(TT[k].r?'Starting...':'Pick Tokens, Syntax tree, Symbols or Translations to watch each compiler phase run.',0,1);if(TT[k].r)TT[k].r()}
+ const t=TT[k];if(!t.r){narr('Pick Tokens, Syntax tree, Symbols or Translations to watch each compiler phase run.',0,1);return}
+ if(t.done){narr('This phase is already built and stays here until you press Clear. Press Replay to watch it again.',1,1);return}
+ narr(t.pos?'Continuing from step '+(t.pos+1)+'...':'Starting...',0,1);t.r()}
 const ms=n=>Math.max(25,Math.min(220,15000/n));
-function runTokens(t,code){const b=$('#tkb'),sv=$('#srcv');b.innerHTML='';sv.textContent=code;let p=0;
- seq(t,(x,k,n)=>{const v=String(x.value),q=code.indexOf(v,p);
-  if(q>=0){sv.innerHTML='<span class="dn">'+esc(code.slice(0,q))+'</span><mark>'+esc(v)+'</mark>'+esc(code.slice(q+v.length));p=q+v.length;const m=sv.querySelector('mark');sv.scrollTop=m.offsetTop-110}
+function runTokens(t,code){const T=TT[cur],b=$('#tkb'),sv=$('#srcv');if(!T.pos){b.innerHTML='';sv.textContent=code;T.p=0}
+ seq(t,(x,k,n)=>{const v=String(x.value),q=code.indexOf(v,T.p||0);
+  if(q>=0){sv.innerHTML='<span class="dn">'+esc(code.slice(0,q))+'</span><mark>'+esc(v)+'</mark>'+esc(code.slice(q+v.length));T.p=q+v.length;const m=sv.querySelector('mark');sv.scrollTop=m.offsetTop-110}
   b.insertAdjacentHTML('beforeend',`<tr class="new"><td>${k+1}</td><td>${esc(x.type)}</td><td>${esc(x.value)}</td><td>${esc(x.line)}</td></tr>`);$('#tkw').scrollTop=1e5;
   narr(`Step ${k+1}/${n}: the lexer reads <b>${esc(v)}</b> on line ${esc(x.line)} and labels it <b>${esc(x.type)}</b>.`,k+1,n);tk()},ms(t.length),'lexical analysis')}
 function flat(o,k,d,out,par){const leaf=o===null||typeof o!=='object';out.push({k,d,leaf,par,v:leaf?o:(o.type||o.node_type||o.name||(Array.isArray(o)?'list of '+o.length:''))});if(!leaf)Object.entries(o).forEach(([a,c])=>flat(c,a,d+1,out,k))}
-function runTree(a){const el=$('#ast'),L=[];el.innerHTML='';flat(a,'program',0,L,'');
+function runTree(a){const el=$('#ast'),L=[];if(!TT[cur].pos)el.innerHTML='';flat(a,'program',0,L,'');
  seq(L,(x,k,n)=>{el.insertAdjacentHTML('beforeend',`<div class="nd" style="margin-left:${x.d*18}px"><b>${esc(x.k)}</b>${x.v!==''?' <i>'+esc(x.v)+'</i>':''}</div>`);el.scrollTop=1e5;
   narr(x.leaf?`Step ${k+1}/${n}: the parser stores the value <b>${esc(x.v)}</b> as <b>${esc(x.k)}</b> inside <b>${esc(x.par)}</b>.`:`Step ${k+1}/${n}: the parser creates the node <b>${esc(x.k)}</b>${x.v?' ('+esc(x.v)+')':''}${x.par?' as a child of <b>'+esc(x.par)+'</b>':' as the root of the tree'}.`,k+1,n);tk()},ms(L.length),'syntax analysis')}
-function runSyms(s){const b=$('#smb');b.innerHTML='';
+function runSyms(s){const b=$('#smb');if(!TT[cur].pos)b.innerHTML='';
  seq(s,(x,k,n)=>{b.insertAdjacentHTML('beforeend',`<tr class="new"><td>${esc(x.name)}</td><td>${esc(x.type)}</td><td>${esc(x.scope)}</td><td>${esc(x.line)}</td><td>${x.init?'yes':'<span class="bad">no</span>'}</td></tr>`);
   narr(`Step ${k+1}/${n}: the semantic analyzer finds <b>${esc(x.name)}</b> (${esc(x.type)}) in scope <b>${esc(x.scope)}</b> on line ${esc(x.line)}. `+(x.init?'It has a starting value.':'<span class="bad">It is never given a value, so reading it is unsafe.</span>'),k+1,n);tk()},700,'semantic analysis')}
-function runTrans(t){const el=$('#trn'),E=Object.entries(t);el.innerHTML='';
- seq(E,async([name,v],k,n)=>{const s=typeof v==='string'?v:(v&&(v.code||v.output))||JSON.stringify(v,null,2),h=document.createElement('div');h.innerHTML=`<h4 style="margin:6px 0">${esc(name)}</h4><pre></pre>`;el.appendChild(h);const pre=h.querySelector('pre');
+function runTrans(t){const el=$('#trn'),E=Object.entries(t);if(!TT[cur].pos)el.innerHTML='';
+ seq(E,async([name,v],k,n)=>{const s=typeof v==='string'?v:(v&&(v.code||v.output))||JSON.stringify(v,null,2),h=document.createElement('div');h.dataset.k=k;const old=el.querySelector('[data-k="'+k+'"]');if(old)old.remove();h.innerHTML=`<h4 style="margin:6px 0">${esc(name)}</h4><pre></pre>`;el.appendChild(h);const pre=h.querySelector('pre');
   narr(`Step ${k+1}/${n}: the transcompiler rewrites the program in <b>${esc(name)}</b>, statement by statement.`,k+1,n);
   for(let q=0;q<s.length&&!skip;q+=4){pre.textContent=s.slice(0,q+4);if(q%16===0)tk();await wait(10)}pre.textContent=s},900,'translation')}
 async function pdf(){const r=await fetch('/export-pdf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({findings:last.findings,language:last.language,risk_profile:last.risk_profile})});
