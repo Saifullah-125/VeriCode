@@ -1,5 +1,6 @@
 import io
 import os
+from xml.sax.saxutils import escape as _x
 from flask import Flask, render_template, request, jsonify, send_file, redirect, url_for, flash
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from reportlab.lib.pagesizes import letter
@@ -18,7 +19,16 @@ from security.risk_evaluator import calculate_risk_profile
 from auth import init_db, User
 
 app = Flask(__name__)
+<<<<<<< HEAD
 app.secret_key = os.environ.get("FLASK_SECRET_KEY") or os.urandom(24)
+=======
+_kf = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.secret_key')
+if not os.path.exists(_kf):
+    with open(_kf, 'wb') as _f:
+        _f.write(os.urandom(24))
+with open(_kf, 'rb') as _f:
+    app.secret_key = _f.read()  # stays the same after restart, so logins survive
+>>>>>>> 285c118dd965823a9e3c2906c196a894c36f242f
 app.config['MAX_CONTENT_LENGTH'] = 2 * 1024 * 1024  # 2MB upload limit
 
 SUPPORTED_LANGUAGES = {
@@ -246,8 +256,8 @@ def export_pdf():
 
     title_style = ParagraphStyle('DocTitle', parent=styles['Heading1'], fontSize=18, textColor=colors.HexColor('#0F172A'), spaceAfter=4)
     meta_style = ParagraphStyle('DocMeta', parent=styles['Normal'], fontSize=9, textColor=colors.HexColor('#64748B'))
-    story.append(Paragraph(f"Secure Compiler — {language} Vulnerability & Risk Audit", title_style))
-    story.append(Paragraph(f"Auditor: <b>{current_user.username}</b> &nbsp;|&nbsp; Target Language: <b>{language}</b> &nbsp;|&nbsp; Static AST & High-to-High Engine", meta_style))
+    story.append(Paragraph(f"Secure Compiler — {_x(str(language))} Vulnerability & Risk Audit", title_style))
+    story.append(Paragraph(f"Auditor: <b>{_x(current_user.username)}</b> &nbsp;|&nbsp; Target Language: <b>{_x(str(language))}</b> &nbsp;|&nbsp; Static AST & High-to-High Engine", meta_style))
     story.append(Spacer(1, 10))
     story.append(HRFlowable(width="100%", thickness=1.5, color=colors.HexColor('#E2E8F0'), spaceBefore=2, spaceAfter=12))
 
@@ -258,7 +268,7 @@ def export_pdf():
             Paragraph(f"<font size=13 color='#FFFFFF'><b>{risk.get('level', 'CLEAN')} ({risk.get('score', 0)}/100)</b></font>", styles['Normal'])
         ],
         [
-            Paragraph(f"<font size=9 color='#FFFFFF'>{risk.get('summary', '')}</font>", styles['Normal']),
+            Paragraph(f"<font size=9 color='#FFFFFF'>{_x(str(risk.get('summary', '')))}</font>", styles['Normal']),
             Paragraph(f"<font size=9 color='#FFFFFF'>High: {risk.get('counts', {}).get('HIGH', 0)} | Med: {risk.get('counts', {}).get('MEDIUM', 0)} | Total: {risk.get('total_findings', 0)}</font>", styles['Normal'])
         ]
     ]
@@ -291,8 +301,8 @@ def export_pdf():
                 f['rule_id'],
                 Paragraph(f"<font color='{sev_color}'><b>{f['severity']}</b></font>", styles['Normal']),
                 str(f['line']),
-                Paragraph(f"<font face='Courier' size=8 color='#B91C1C'><b>{f.get('lexeme', 'N/A')}</b></font><br/><font size=7 color='#64748B'>{f['evidence']}</font>", styles['Normal']),
-                Paragraph(f"<b>{f['title']}</b><br/><font size=8><b>Explanation:</b> {f['description']}</font><br/><font size=7 color='#047857'><b>Solution:</b> {f['recommendation']}</font>", styles['Normal'])
+                Paragraph(f"<font face='Courier' size=8 color='#B91C1C'><b>{_x(str(f.get('lexeme', 'N/A')))}</b></font><br/><font size=7 color='#64748B'>{_x(str(f['evidence']))}</font>", styles['Normal']),
+                Paragraph(f"<b>{_x(str(f['title']))}</b><br/><font size=8><b>Explanation:</b> {_x(str(f['description']))}</font><br/><font size=7 color='#047857'><b>Solution:</b> {_x(str(f['recommendation']))}</font>", styles['Normal'])
             ])
 
         t = Table(table_data, colWidths=[55, 45, 30, 160, 250])
