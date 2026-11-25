@@ -18,8 +18,17 @@ from security.risk_evaluator import calculate_risk_profile
 from auth import init_db, User
 
 app = Flask(__name__)
-app.secret_key = os.urandom(24)
+app.secret_key = os.environ.get("FLASK_SECRET_KEY") or os.urandom(24)
 app.config['MAX_CONTENT_LENGTH'] = 2 * 1024 * 1024  # 2MB upload limit
+
+SUPPORTED_LANGUAGES = {
+    "c": "c",
+    "cpp": "cpp",
+    "c++": "cpp",
+    "python": "python",
+    "py": "python",
+    "java": "java",
+}
 
 init_db()
 login_manager = LoginManager()
@@ -27,9 +36,17 @@ login_manager.init_app(app)
 login_manager.login_view = 'login'
 login_manager.login_message_category = 'error'
 
+
+def normalize_language(language):
+    if not language or not isinstance(language, str):
+        return None
+    return SUPPORTED_LANGUAGES.get(language.strip().lower())
+
+
 @login_manager.user_loader
 def load_user(user_id):
     return User.get(user_id)
+
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -44,6 +61,7 @@ def login():
             return redirect(url_for('index'))
         flash('Invalid username or password.', 'error')
     return render_template('login.html')
+
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -63,11 +81,13 @@ def register():
             flash('Username already exists.', 'error')
     return render_template('register.html')
 
+
 @app.route('/logout')
 @login_required
 def logout():
     logout_user()
     return redirect(url_for('login'))
+
 
 def run_c_cpp_pipeline(code, is_cpp=False):
     lexer = build_c_lexer()
@@ -117,14 +137,19 @@ def run_c_cpp_pipeline(code, is_cpp=False):
         "translations": translations
     }
 
+
 def run_pipeline(code, language=None):
     if not language:
-        return {"success": False, "errors": ["Please select a programming language (C, C++, Python, or Java) before analyzing."], "stage": "Language Selection"}
-    
-    lang = language.lower().strip()
-    if lang in ["c"]:
+        return {
+            "success": False,
+            "errors": ["Please select a programming language (C, C++, Python, or Java) before analyzing."],
+            "stage": "Language Selection"
+        }
+
+    lang = normalize_language(language)
+    if lang == "c":
         return run_c_cpp_pipeline(code, is_cpp=False)
-    elif lang in ["cpp", "c++"]:
+    elif lang == "cpp":
         return run_c_cpp_pipeline(code, is_cpp=True)
     elif lang == "python":
         res = analyze_python_code(code)
@@ -139,44 +164,72 @@ def run_pipeline(code, language=None):
             res["translations"] = get_all_conversions(code, "java")
         return res
     else:
-        return {"success": False, "errors": [f"Unsupported target language '{language}'. Please select C, C++, Python, or Java."], "stage": "Language Selection"}
+        return {
+            "success": False,
+            "errors": [f"Unsupported target language '{language}'. Please select C, C++, Python, or Java."],
+            "stage": "Language Selection"
+        }
+
 
 @app.route('/')
 @login_required
 def index():
     return render_template('index.html')
 
+
 @app.route('/analyze', methods=['POST'])
 @login_required
 def analyze():
     code = ""
-    language = request.form.get('language')
-    
+    snapshot_id = ""
+    data = request.get_json(silent=True) or {}
+    language = request.form.get('language') or data.get('language')
+
     if 'file' in request.files and request.files['file'].filename != '':
         f = request.files['file']
         ext = os.path.splitext(f.filename)[1].lower()
         if not language:
-            if ext == '.c': language = 'c'
-            elif ext in ['.cpp', '.cc', '.cxx', '.h', '.hpp']: language = 'cpp'
-            elif ext == '.py': language = 'python'
-            elif ext == '.java': language = 'java'
+            if ext == '.c':
+                language = 'c'
+            elif ext in ['.cpp', '.cc', '.cxx', '.h', '.hpp']:
+                language = 'cpp'
+            elif ext == '.py':
+                language = 'python'
+            elif ext == '.java':
+                language = 'java'
             else:
-                return jsonify({"success": False, "errors": ["Unsupported file type. Please upload a .c, .cpp, .java, or .py source file."]}), 400
+                return jsonify({
+                    "success": False,
+                    "errors": ["Unsupported file type. Please upload a .c, .cpp, .java, or .py source file."]
+                }), 400
         code = f.read().decode('utf-8', errors='replace')
     else:
-        data = request.get_json(silent=True) or request.form
-        code = data.get('code', '')
-        if not language:
-            language = data.get('language')
+        source_payload = data if data else request.form
+        code = source_payload.get('code', '')
+        snapshot_id = str(source_payload.get('snapshot_id', ''))
 
-    if not language:
-        return jsonify({"success": False, "errors": ["Please select a target programming language (C, C++, Python, or Java) first."]}), 400
+    normalized_lang = normalize_language(language)
+    if not normalized_lang:
+        return jsonify({
+            "success": False,
+            "errors": ["Please select a valid target programming language (C, C++, Python, or Java) first."]
+        }), 400
 
-    if not code.strip():
-        return jsonify({"success": False, "errors": ["Input code is empty. Please enter or upload code to analyze."]}), 400
+    if not isinstance(code, str) or not code.strip():
+        return jsonify({
+            "success": False,
+            "errors": ["Input code is empty. Please enter or upload code to analyze."]
+        }), 400
 
-    result = run_pipeline(code, language=language)
+    result = run_pipeline(code, language=normalized_lang)
+    if result.get("success"):
+        result["workspace_meta"] = {
+            "analyzed_language": result.get("language"),
+            "line_count": len(code.splitlines()),
+            "snapshot_id": snapshot_id
+        }
     return jsonify(result)
+
 
 @app.route('/export-pdf', methods=['POST'])
 @login_required
@@ -211,10 +264,10 @@ def export_pdf():
     ]
     banner_table = Table(risk_banner_data, colWidths=[340, 200])
     banner_table.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,-1), colors.HexColor(risk_color_hex)),
-        ('PADDING', (0,0), (-1,-1), 8),
-        ('ALIGN', (1,0), (1,-1), 'RIGHT'),
-        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor(risk_color_hex)),
+        ('PADDING', (0, 0), (-1, -1), 8),
+        ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
     ]))
     story.append(banner_table)
     story.append(Spacer(1, 15))
@@ -225,9 +278,9 @@ def export_pdf():
     if not findings:
         clean_box = Table([[Paragraph("<font size=10 color='#065F46'>No vulnerabilities detected! The code parsed and compiled cleanly without triggering any known threat rules.</font>", styles['Normal'])]], colWidths=[540])
         clean_box.setStyle(TableStyle([
-            ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#ECFDF5')),
-            ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#A7F3D0')),
-            ('PADDING', (0,0), (-1,-1), 10)
+            ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#ECFDF5')),
+            ('BOX', (0, 0), (-1, -1), 1, colors.HexColor('#A7F3D0')),
+            ('PADDING', (0, 0), (-1, -1), 10)
         ]))
         story.append(clean_box)
     else:
@@ -244,19 +297,20 @@ def export_pdf():
 
         t = Table(table_data, colWidths=[55, 45, 30, 160, 250])
         t.setStyle(TableStyle([
-            ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#0F172A')),
-            ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke),
-            ('ALIGN', (0,0), (-1,-1), 'LEFT'),
-            ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
-            ('VALIGN', (0,0), (-1,-1), 'TOP'),
-            ('PADDING', (0,0), (-1,-1), 5),
-            ('ROWBACKGROUNDS', (0,1), (-1,-1), [colors.white, colors.HexColor('#F8FAFC')])
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#0F172A')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#CBD5E1')),
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('PADDING', (0, 0), (-1, -1), 5),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F8FAFC')])
         ]))
         story.append(t)
 
     doc.build(story)
     buf.seek(0)
     return send_file(buf, as_attachment=True, download_name=f"secure_compiler_{language}_audit.pdf", mimetype='application/pdf')
+
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)

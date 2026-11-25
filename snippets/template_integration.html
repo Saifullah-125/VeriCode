@@ -1,0 +1,15 @@
+<!-- Include in your dashboard template (e.g., templates/index.html) -->
+<script src="{{ url_for('static', filename='js/editor_state.js') }}"></script>
+
+<div id="stale-results-banner" style="display:none;" class="alert alert-warning">
+  Editor content or active language has changed since the last analysis. Click <strong>Analyze</strong> to refresh results.
+</div>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    VeriCodeWorkspace.init({
+      textareaId: "code-editor",
+      initialLanguage: "C"
+    });
+  });
+</script>

@@ -9,7 +9,8 @@ h2.step span{width:26px;height:26px;border-radius:50%;background:linear-gradient
 .lang big{display:block;font:700 2rem 'JetBrains Mono',monospace;color:var(--a1)}
 .lang small{color:var(--mut)}
 .lang.on{border-color:var(--a1);box-shadow:0 0 0 2px var(--a1),0 18px 40px -16px var(--a1)}
-textarea{width:100%;min-height:260px;resize:vertical;font:13px/1.55 'JetBrains Mono',monospace;color:var(--fg);background:color-mix(in srgb,var(--bg) 70%,transparent);border:1px solid var(--line);border-radius:12px;padding:14px;tab-size:4}
+textarea{display:none;width:100%;min-height:260px;resize:vertical;font:13px/1.55 'JetBrains Mono',monospace;color:var(--fg);background:color-mix(in srgb,var(--bg) 70%,transparent);border:1px solid var(--line);border-radius:12px;padding:14px;tab-size:4}
+textarea.on{display:block}
 textarea:focus{outline:0;border-color:var(--a1)}
 .row{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0;align-items:center}
 #res{margin-top:34px;display:none}
@@ -73,7 +74,10 @@ mark{background:var(--a1);color:#06101a;border-radius:4px;padding:0 3px;box-shad
 
 <h2 class="step"><span>2</span>Add your code</h2>
 <div class="card">
-  <textarea id="code" spellcheck="false" placeholder="Paste source code here, load a sample, or upload a file."></textarea>
+  <textarea id="editor-c" data-lang="c" spellcheck="false" placeholder="Paste source code here, load a sample, or upload a file."></textarea>
+  <textarea id="editor-cpp" data-lang="cpp" spellcheck="false" placeholder="Paste source code here, load a sample, or upload a file."></textarea>
+  <textarea id="editor-python" data-lang="python" spellcheck="false" placeholder="Paste source code here, load a sample, or upload a file."></textarea>
+  <textarea id="editor-java" data-lang="java" spellcheck="false" placeholder="Paste source code here, load a sample, or upload a file."></textarea>
   <div class="row">
     <label class="btn"><input type="checkbox" id="fx" checked> Breach intro</label>
     <button class="btn" id="demo" title="Types a sample by itself and analyzes it">Auto demo</button>
@@ -109,19 +113,27 @@ cpp:`int main() {\n    char token[32] = "admin_master_cpp_token";\n    char buff
 python:`import os\nimport pickle\n\nadmin_token = "secret_api_token_xyz"\n\ndef run_query(user_val):\n    sql = "SELECT * FROM users WHERE id = " + user_val\n    os.system("echo " + user_val)\n    data = pickle.loads(b"cos\\nsystem\\n(S'ls'\\ntR.")\n    eval("2 + 2")\n`,
 java:`public class VulnerabilityDemo {\n    public static void main(String[] args) {\n        String apiKey = "AIzaSyD-1234567890Secret";\n        String userInput = args[0];\n\n        Runtime.getRuntime().exec("ping " + userInput);\n        String sql = "SELECT * FROM accounts WHERE id = " + userInput;\n        stmt.executeQuery(sql);\n    }\n}`};
 let lang=null,last=null;
+const curEditor=()=>lang?document.getElementById('editor-'+lang):null;
+function showEditor(l){
+  document.querySelectorAll('textarea[data-lang]').forEach(t=>{
+    const match=t.dataset.lang===l;
+    t.classList.toggle('on',match);
+    t.style.display=match?'block':'none';
+  });
+}
 /* hero: letters scramble into place once on load */
 (()=>{const el=$('#hero'),t=el.textContent,ch='!<>-_\\/[]{}=+*^?#';let f=0;
  const id=setInterval(()=>{el.textContent=[...t].map((c,i)=>i<f/2?c:(c===' '?' ':ch[Math.random()*ch.length|0])).join('');if(++f>t.length*2+2){clearInterval(id);el.textContent=t}},38)})();
-document.querySelectorAll('.lang').forEach(c=>{tilt(c);const pick=()=>{document.querySelectorAll('.lang').forEach(x=>x.classList.remove('on'));c.classList.add('on');lang=c.dataset.l;blip(520);pulse()};c.onclick=pick;c.onkeydown=e=>e.key==='Enter'&&pick()});
-$('#sample').onclick=()=>{if(!lang)return showErr('Choose a language first.');$('#code').value=SAMPLES[lang];$('#err').innerHTML='';blip(700)};
-$('#demo').onclick=async()=>{const ks=Object.keys(SAMPLES),l=ks[Math.random()*4|0];document.querySelector(`.lang[data-l="${l}"]`).click();const t=SAMPLES[l],ta=$('#code');ta.value='';
+document.querySelectorAll('.lang').forEach(c=>{tilt(c);const pick=()=>{document.querySelectorAll('.lang').forEach(x=>x.classList.remove('on'));c.classList.add('on');lang=c.dataset.l;showEditor(lang);blip(520);pulse()};c.onclick=pick;c.onkeydown=e=>e.key==='Enter'&&pick()});
+$('#sample').onclick=()=>{const ed=curEditor();if(!ed)return showErr('Choose a language first.');ed.value=SAMPLES[lang];$('#err').innerHTML='';blip(700)};
+$('#demo').onclick=async()=>{const ks=Object.keys(SAMPLES),l=ks[Math.random()*4|0];document.querySelector(`.lang[data-l="${l}"]`).click();const t=SAMPLES[l],ta=curEditor();ta.value='';
  for(let k=0;k<t.length;k+=2){ta.value+=t.slice(k,k+2);ta.scrollTop=1e5;if(k%6===0)blip(300+Math.random()*500);await new Promise(r=>setTimeout(r,16))}$('#go').click()};
 addEventListener('keydown',e=>{if(e.ctrlKey&&e.key==='Enter')$('#go').click()});
-$('#clear').onclick=()=>{$('#code').value='';$('#res').style.display='none';$('#err').innerHTML=''};
+$('#clear').onclick=()=>{const ed=curEditor();if(ed)ed.value='';$('#res').style.display='none';$('#err').innerHTML=''};
 $('#file').onchange=e=>{const f=e.target.files[0];if(!f)return;const x=f.name.split('.').pop().toLowerCase();
  const m={c:'c',h:'cpp',hpp:'cpp',cpp:'cpp',cc:'cpp',cxx:'cpp',py:'python',java:'java'}[x];
- if(m){lang=m;document.querySelectorAll('.lang').forEach(c=>c.classList.toggle('on',c.dataset.l===m))}
- const r=new FileReader();r.onload=()=>$('#code').value=r.result;r.readAsText(f)};
+ if(m){lang=m;document.querySelectorAll('.lang').forEach(c=>c.classList.toggle('on',c.dataset.l===m));showEditor(m)}
+ const r=new FileReader();r.onload=()=>{const ed=curEditor();if(ed)ed.value=r.result};r.readAsText(f)};
 const sfx=(()=>{let c;const A=()=>c||(c=new (window.AudioContext||window.webkitAudioContext)());
 const tone=(t,f,d,v,f2)=>{const a=A(),o=a.createOscillator(),g=a.createGain();o.type=t;o.frequency.setValueAtTime(f,a.currentTime);if(f2)o.frequency.linearRampToValueAtTime(f2,a.currentTime+d);g.gain.setValueAtTime(v,a.currentTime);g.gain.exponentialRampToValueAtTime(.0001,a.currentTime+d);o.connect(g).connect(a.destination);o.start();o.stop(a.currentTime+d)};
 return{tick:()=>tone('square',1200,.04,.03),beep:f=>tone('square',f,.12,.05),siren(){for(let k=0;k<4;k++)setTimeout(()=>tone('sawtooth',500,.4,.06,900),k*400);tone('sine',70,.8,.4,35)},chime(){[523,659,784,1047].forEach((f,k)=>setTimeout(()=>tone('sine',f,.8,.08),k*130))}}})();
@@ -139,7 +151,8 @@ function showErr(m,stage){$('#err').innerHTML=`<div class="msg error">${stage?'<
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 $('#go').onclick=async()=>{
  if(!lang)return showErr('Choose a language first.');
- const code=$('#code').value;if(!code.trim())return showErr('Add some code first.');
+ const ed=curEditor();
+ const code=ed?ed.value:'';if(!code.trim())return showErr('Add some code first.');
  const b=$('#go');b.classList.add('busy');$('#err').innerHTML='';pulse();
  try{const r=await fetch('/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code,language:lang})});
   if(r.redirected||r.status===401){location.href='/login';return}
@@ -186,7 +199,7 @@ $('#sMode').onchange=e=>{S.step=e.target.value==='1';if(!S.step)go();applySet()}
 $('#sPre').onchange=e=>{const P={laptop:{fs:1,wide:false,speed:1},proj:{fs:1.35,wide:true,speed:.75},mobile:{fs:.85,wide:false,speed:1}}[e.target.value];if(P){Object.assign(S,P);applySet()}};
 $('#bPa').onclick=e=>{paused=!paused;e.target.textContent=paused?'Resume':'Pause';if(!paused)go()};$('#bNx').onclick=go;$('#bSk').onclick=()=>{skip=true;go()};$('#bRe').onclick=()=>show(cur);
 applySet();
-function buildTabs(d){const code=$('#code').value;
+function buildTabs(d){const ed=curEditor(), code=ed?ed.value:'';
  TT=[{n:'Findings',h:fin(d.findings||[])}];
  if(d.tokens)TT.push({n:'Tokens ('+d.tokens.length+')',h:'<div class="split"><div><div class="lab">Source code being scanned</div><pre id="srcv"></pre></div><div><div class="lab">Tokens found</div><div class="card wrap" id="tkw"><table><thead><tr><th>#</th><th>Type</th><th>Value</th><th>Line</th></tr></thead><tbody id="tkb"></tbody></table></div></div></div>',r:()=>runTokens(d.tokens,code)});
  if(d.ast&&Object.keys(d.ast).length)TT.push({n:'Syntax tree',h:'<div class="card wrap" id="ast"></div>',r:()=>runTree(d.ast)});

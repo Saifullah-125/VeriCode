@@ -1,0 +1,16 @@
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environment & Secrets
+.env
+.secret_key
+
+# Local SQLite database (optional: remove from tracking if sensitive)
+users.db
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
