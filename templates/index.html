@@ -112,7 +112,7 @@ c:`int main() {\n    char password[32] = "super_secret_123";\n    char user_inpu
 cpp:`int main() {\n    char token[32] = "admin_master_cpp_token";\n    char buffer[64];\n    int* leak_ptr = new int[50];\n\n    gets(buffer);\n    printf(buffer);\n    return 0;\n}`,
 python:`import os\nimport pickle\n\nadmin_token = "secret_api_token_xyz"\n\ndef run_query(user_val):\n    sql = "SELECT * FROM users WHERE id = " + user_val\n    os.system("echo " + user_val)\n    data = pickle.loads(b"cos\\nsystem\\n(S'ls'\\ntR.")\n    eval("2 + 2")\n`,
 java:`public class VulnerabilityDemo {\n    public static void main(String[] args) {\n        String apiKey = "AIzaSyD-1234567890Secret";\n        String userInput = args[0];\n\n        Runtime.getRuntime().exec("ping " + userInput);\n        String sql = "SELECT * FROM accounts WHERE id = " + userInput;\n        stmt.executeQuery(sql);\n    }\n}`};
-let lang=null,last=null;
+let lang=null,last=null,DEMO=0;
 const curEditor=()=>lang?document.getElementById('editor-'+lang):null;
 function showEditor(l){
   document.querySelectorAll('textarea[data-lang]').forEach(t=>{
@@ -124,33 +124,18 @@ function showEditor(l){
 /* hero: letters scramble into place once on load */
 (()=>{const el=$('#hero'),t=el.textContent,ch='!<>-_\\/[]{}=+*^?#';let f=0;
  const id=setInterval(()=>{el.textContent=[...t].map((c,i)=>i<f/2?c:(c===' '?' ':ch[Math.random()*ch.length|0])).join('');if(++f>t.length*2+2){clearInterval(id);el.textContent=t}},38)})();
-<<<<<<< HEAD
-document.querySelectorAll('.lang').forEach(c=>{tilt(c);const pick=()=>{document.querySelectorAll('.lang').forEach(x=>x.classList.remove('on'));c.classList.add('on');lang=c.dataset.l;showEditor(lang);blip(520);pulse()};c.onclick=pick;c.onkeydown=e=>e.key==='Enter'&&pick()});
+document.querySelectorAll('.lang').forEach(c=>{tilt(c);const pick=()=>{document.querySelectorAll('.lang').forEach(x=>x.classList.remove('on'));c.classList.add('on');lang=c.dataset.l;showEditor(lang);blip(520);pulse();DEMO++;$('#err').innerHTML='';stop()};c.onclick=pick;c.onkeydown=e=>e.key==='Enter'&&pick()});
 $('#sample').onclick=()=>{const ed=curEditor();if(!ed)return showErr('Choose a language first.');ed.value=SAMPLES[lang];$('#err').innerHTML='';blip(700)};
-$('#demo').onclick=async()=>{const ks=Object.keys(SAMPLES),l=ks[Math.random()*4|0];document.querySelector(`.lang[data-l="${l}"]`).click();const t=SAMPLES[l],ta=curEditor();ta.value='';
- for(let k=0;k<t.length;k+=2){ta.value+=t.slice(k,k+2);ta.scrollTop=1e5;if(k%6===0)blip(300+Math.random()*500);await new Promise(r=>setTimeout(r,16))}$('#go').click()};
-addEventListener('keydown',e=>{if(e.ctrlKey&&e.key==='Enter')$('#go').click()});
-$('#clear').onclick=()=>{const ed=curEditor();if(ed)ed.value='';$('#res').style.display='none';$('#err').innerHTML=''};
-$('#file').onchange=e=>{const f=e.target.files[0];if(!f)return;const x=f.name.split('.').pop().toLowerCase();
- const m={c:'c',h:'cpp',hpp:'cpp',cpp:'cpp',cc:'cpp',cxx:'cpp',py:'python',java:'java'}[x];
- if(m){lang=m;document.querySelectorAll('.lang').forEach(c=>c.classList.toggle('on',c.dataset.l===m));showEditor(m)}
- const r=new FileReader();r.onload=()=>{const ed=curEditor();if(ed)ed.value=r.result};r.readAsText(f)};
-=======
-document.querySelectorAll('.lang').forEach(c=>{tilt(c);const pick=()=>{document.querySelectorAll('.lang').forEach(x=>x.classList.remove('on'));c.classList.add('on');lang=c.dataset.l;blip(520);pulse();DEMO++;const ta=$('#code'),v=ta.value.trim();
-  if(Object.values(SAMPLES).some(s=>s.trim()===v))ta.value='';$('#res').style.display='none';$('#err').innerHTML='';stop()};c.onclick=pick;c.onkeydown=e=>e.key==='Enter'&&pick()});
-$('#sample').onclick=()=>{if(!lang)return showErr('Choose a language first.');$('#code').value=SAMPLES[lang];$('#err').innerHTML='';blip(700)};
-let DEMO=0;
 $('#demo').onclick=async()=>{if(!lang)return showErr('Choose a language first, then press Auto demo.');
- const my=++DEMO,t=SAMPLES[lang],ta=$('#code');ta.value='';$('#err').innerHTML='';
+ const my=++DEMO,t=SAMPLES[lang],ta=curEditor();if(!ta)return;ta.value='';$('#err').innerHTML='';
  for(let k=0;k<t.length&&my===DEMO;k+=2){ta.value+=t.slice(k,k+2);ta.scrollTop=1e5;if(k%6===0)blip(300+Math.random()*500);await new Promise(r=>setTimeout(r,16))}
  if(my===DEMO)$('#go').click()};
 addEventListener('keydown',e=>{if(e.ctrlKey&&e.key==='Enter')$('#go').click()});
-$('#clear').onclick=()=>{DEMO++;$('#code').value='';$('#res').style.display='none';$('#err').innerHTML='';stop();TT=[]};
+$('#clear').onclick=()=>{DEMO++;const ed=curEditor();if(ed)ed.value='';$('#res').style.display='none';$('#err').innerHTML='';stop();TT=[]};
 $('#file').onchange=e=>{const f=e.target.files[0];if(!f)return;const x=f.name.split('.').pop().toLowerCase();
  const m={c:'c',h:'cpp',hpp:'cpp',cpp:'cpp',cc:'cpp',cxx:'cpp',py:'python',java:'java'}[x];
- if(m){lang=m;document.querySelectorAll('.lang').forEach(c=>c.classList.toggle('on',c.dataset.l===m))}
- const r=new FileReader();r.onload=()=>$('#code').value=r.result;r.readAsText(f);e.target.value=''};
->>>>>>> 285c118dd965823a9e3c2906c196a894c36f242f
+ if(m){lang=m;document.querySelectorAll('.lang').forEach(c=>c.classList.toggle('on',c.dataset.l===m));showEditor(m)}
+ const r=new FileReader();r.onload=()=>{const ed=curEditor();if(ed)ed.value=r.result};r.readAsText(f);e.target.value=''};
 const sfx=(()=>{let c;const A=()=>c||(c=new (window.AudioContext||window.webkitAudioContext)());
 const tone=(t,f,d,v,f2)=>{const a=A(),o=a.createOscillator(),g=a.createGain();o.type=t;o.frequency.setValueAtTime(f,a.currentTime);if(f2)o.frequency.linearRampToValueAtTime(f2,a.currentTime+d);g.gain.setValueAtTime(v,a.currentTime);g.gain.exponentialRampToValueAtTime(.0001,a.currentTime+d);o.connect(g).connect(a.destination);o.start();o.stop(a.currentTime+d)};
 return{tick:()=>tone('square',1200,.04,.03),beep:f=>tone('square',f,.12,.05),siren(){for(let k=0;k<4;k++)setTimeout(()=>tone('sawtooth',500,.4,.06,900),k*400);tone('sine',70,.8,.4,35)},chime(){[523,659,784,1047].forEach((f,k)=>setTimeout(()=>tone('sine',f,.8,.08),k*130))}}})();

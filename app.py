@@ -19,17 +19,19 @@ from security.risk_evaluator import calculate_risk_profile
 from auth import init_db, User
 
 app = Flask(__name__)
-<<<<<<< HEAD
-app.secret_key = os.environ.get("FLASK_SECRET_KEY") or os.urandom(24)
-=======
-_kf = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.secret_key')
-if not os.path.exists(_kf):
-    with open(_kf, 'wb') as _f:
-        _f.write(os.urandom(24))
-with open(_kf, 'rb') as _f:
-    app.secret_key = _f.read()  # stays the same after restart, so logins survive
->>>>>>> 285c118dd965823a9e3c2906c196a894c36f242f
-app.config['MAX_CONTENT_LENGTH'] = 2 * 1024 * 1024  # 2MB upload limit
+
+_env_secret = os.environ.get("FLASK_SECRET_KEY")
+if _env_secret:
+    app.secret_key = _env_secret.encode("utf-8")
+else:
+    _kf = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.secret_key')
+    if not os.path.exists(_kf):
+        with open(_kf, 'wb') as _f:
+            _f.write(os.urandom(24))
+    with open(_kf, 'rb') as _f:
+        app.secret_key = _f.read()
+
+app.config['MAX_CONTENT_LENGTH'] = 2 * 1024 * 1024
 
 SUPPORTED_LANGUAGES = {
     "c": "c",
