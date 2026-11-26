@@ -1,57 +1,112 @@
-def calculate_risk_profile(findings):
-    weights = {"HIGH": 30, "MEDIUM": 15, "LOW": 5}
-    counts = {"HIGH": 0, "MEDIUM": 0, "LOW": 0}
-    total_score = 0
+"""Phase 4: Merge, deduplicate, and score static findings alongside secret findings."""
 
-    for f in findings:
-        sev = f.get("severity", "MEDIUM").upper()
-        if sev in weights:
-            counts[sev] += 1
-            total_score += weights[sev]
-        else:
-            counts["MEDIUM"] += 1
-            total_score += 15
+from typing import Any, Dict, List
 
-    score = min(100, total_score)
+
+SEVERITY_WEIGHTS = {
+    "CRITICAL": 35,
+    "HIGH": 25,
+    "MEDIUM": 12,
+    "LOW": 5,
+}
+
+SEVERITY_ORDER = {
+    "CRITICAL": 0,
+    "HIGH": 1,
+    "MEDIUM": 2,
+    "LOW": 3,
+}
+
+
+def merge_and_deduplicate_findings(
+    existing_findings: List[Dict[str, Any]],
+    secret_findings: List[Dict[str, Any]],
+) -> List[Dict[str, Any]]:
+    """Merge legacy static findings with secret findings without double-counting the same line/secret."""
+    merged: List[Dict[str, Any]] = []
+    seen_signatures = set()
+    secret_lines = set()
+
+    for sf in secret_findings or []:
+        line = int(sf.get("line", 0))
+        rule_id = str(sf.get("rule_id", ""))
+        masked = str(sf.get("evidence_masked") or sf.get("lexeme") or "")
+        sig = (line, rule_id, masked)
+        if sig in seen_signatures:
+            continue
+        seen_signatures.add(sig)
+        secret_lines.add(line)
+        merged.append(sf)
+
+    for ef in existing_findings or []:
+        line = int(ef.get("line", 0))
+        rule_id = str(ef.get("rule_id", ""))
+        title_lower = str(ef.get("title", "")).lower()
+        if line in secret_lines and any(
+            kw in title_lower or kw in rule_id.lower()
+            for kw in ("password", "secret", "token", "api_key", "apikey", "credential", "hardcoded")
+        ):
+            continue
+        lex = str(ef.get("lexeme", ""))
+        sig = (line, rule_id, lex)
+        if sig in seen_signatures:
+            continue
+        seen_signatures.add(sig)
+        merged.append(ef)
+
+    merged.sort(key=lambda item: (SEVERITY_ORDER.get(str(item.get("severity", "LOW")).upper(), 9), int(item.get("line", 0))))
+    return merged
+
+
+def calculate_risk_profile(findings: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """Calculate deterministic 0-100 risk score and tier metadata from deduplicated findings."""
+    counts = {"CRITICAL": 0, "HIGH": 0, "MEDIUM": 0, "LOW": 0}
+    raw_score = 0
+
+    for f in findings or []:
+        sev = str(f.get("severity", "LOW")).upper()
+        if sev not in counts:
+            sev = "LOW"
+        counts[sev] += 1
+        raw_score += SEVERITY_WEIGHTS.get(sev, 5)
+
+    score = min(100, raw_score)
+    total = len(findings or [])
+    high_plus = counts["CRITICAL"] + counts["HIGH"]
 
     if score == 0:
-        level = "CLEAN / NO RISK"
-        badge_class = "bg-emerald-100 text-emerald-800 border-emerald-300"
-        bar_color = "bg-emerald-500"
+        level = "CLEAN"
         pdf_color = "#10B981"
-        summary = "No vulnerable patterns or risky lexemes were identified in the analyzed code."
-    elif score <= 25:
-        level = "LOW RISK"
-        badge_class = "bg-blue-100 text-blue-800 border-blue-300"
-        bar_color = "bg-blue-500"
-        pdf_color = "#3B82F6"
-        summary = "Minor security warnings detected. The program structure is largely safe with low exploitability."
-    elif score <= 60:
-        level = "MODERATE RISK"
-        badge_class = "bg-amber-100 text-amber-800 border-amber-300"
-        bar_color = "bg-amber-500"
+        summary = "No security vulnerabilities or exposed secrets were detected."
+    elif score >= 75 or counts["CRITICAL"] > 0:
+        level = "CRITICAL"
+        pdf_color = "#DC2626"
+        summary = f"Critical exposure detected ({high_plus} high/critical issues). Immediate remediation required."
+    elif score >= 45 or counts["HIGH"] > 0:
+        level = "HIGH"
+        pdf_color = "#EF4444"
+        summary = f"High-risk security issues detected ({counts['HIGH']} high, {counts['MEDIUM']} medium)."
+    elif score >= 20:
+        level = "MODERATE"
         pdf_color = "#F59E0B"
-        summary = "Moderate risk exposure detected. Several insecure function calls or practices require review."
-    elif score <= 85:
-        level = "HIGH RISK"
-        badge_class = "bg-orange-100 text-orange-800 border-orange-300"
-        bar_color = "bg-orange-500"
-        pdf_color = "#F97316"
-        summary = "High risk security vulnerabilities detected. Exploitable patterns (such as injection or memory corruption) are present."
+        summary = f"Moderate security weaknesses detected ({total} total findings)."
     else:
-        level = "CRITICAL RISK"
-        badge_class = "bg-rose-100 text-rose-800 border-rose-300"
-        bar_color = "bg-rose-600"
-        pdf_color = "#E11D48"
-        summary = "Severe vulnerability saturation. Multiple critical flaws allow arbitrary execution, credential leakage, or memory corruption."
+        level = "LOW"
+        pdf_color = "#3B82F6"
+        summary = f"Low-severity advisory findings detected ({total} total)."
+
+    ui_counts = {
+        "CRITICAL": counts["CRITICAL"],
+        "HIGH": counts["HIGH"] + counts["CRITICAL"],
+        "MEDIUM": counts["MEDIUM"],
+        "LOW": counts["LOW"],
+    }
 
     return {
         "score": score,
         "level": level,
-        "badge_class": badge_class,
-        "bar_color": bar_color,
         "pdf_color": pdf_color,
         "summary": summary,
-        "counts": counts,
-        "total_findings": len(findings)
+        "counts": ui_counts,
+        "total_findings": total,
     }

@@ -18,6 +18,9 @@ from security.java_engine import analyze_java_code
 from security.risk_evaluator import calculate_risk_profile
 from auth import init_db, User
 
+from security.secrets.value_re_analyzer import analyze_values_with_re
+from security.risk_evaluator import merge_and_deduplicate_findings, calculate_risk_profile
+
 app = Flask(__name__)
 
 _env_secret = os.environ.get("FLASK_SECRET_KEY")
@@ -235,10 +238,16 @@ def analyze():
 
     result = run_pipeline(code, language=normalized_lang)
     if result.get("success"):
+        re_findings = analyze_values_with_re(code, result.get("language", "General"))
+        result["findings"] = merge_and_deduplicate_findings(
+            result.get("findings", []),
+            re_findings,
+        )
+        result["risk_profile"] = calculate_risk_profile(result["findings"])
         result["workspace_meta"] = {
             "analyzed_language": result.get("language"),
             "line_count": len(code.splitlines()),
-            "snapshot_id": snapshot_id
+            "snapshot_id": snapshot_id,
         }
     return jsonify(result)
 
