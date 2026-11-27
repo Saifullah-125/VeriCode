@@ -9,9 +9,16 @@ h2.step span{width:26px;height:26px;border-radius:50%;background:linear-gradient
 .lang big{display:block;font:700 2rem 'JetBrains Mono',monospace;color:var(--a1)}
 .lang small{color:var(--mut)}
 .lang.on{border-color:var(--a1);box-shadow:0 0 0 2px var(--a1),0 18px 40px -16px var(--a1)}
-textarea{display:none;width:100%;min-height:260px;resize:vertical;font:13px/1.55 'JetBrains Mono',monospace;color:var(--fg);background:color-mix(in srgb,var(--bg) 70%,transparent);border:1px solid var(--line);border-radius:12px;padding:14px;tab-size:4}
+.ed-box{display:none;width:100%;min-height:260px;background:color-mix(in srgb,var(--bg) 70%,transparent);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.ed-box.on{display:flex}
+.ed-box:focus-within{border-color:var(--a1)}
+.gutter{width:46px;flex-shrink:0;padding:14px 8px 14px 4px;text-align:right;font:13px/1.55 'JetBrains Mono',monospace;color:var(--mut);background:color-mix(in srgb,var(--bg) 88%,transparent);border-right:1px solid var(--line);user-select:none;overflow:hidden;white-space:pre}
+textarea{display:none;flex:1;width:100%;min-height:260px;resize:vertical;font:13px/1.55 'JetBrains Mono',monospace;color:var(--fg);background:transparent;border:0;padding:14px;tab-size:4;white-space:pre;overflow:auto}
 textarea.on{display:block}
-textarea:focus{outline:0;border-color:var(--a1)}
+textarea:focus{outline:0}
+.out-code{display:flex;background:color-mix(in srgb,var(--bg) 70%,transparent);border:1px solid var(--line);border-radius:12px;overflow:hidden;margin:6px 0 14px}
+.out-code .gutter{font-size:.82rem;line-height:1.55}
+.out-code pre{flex:1;border:0;border-radius:0;background:transparent;margin:0;line-height:1.55;white-space:pre;overflow:auto}
 .row{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0;align-items:center}
 #res{margin-top:34px;display:none}
 .gauge{display:flex;gap:26px;align-items:center;flex-wrap:wrap}
@@ -51,6 +58,7 @@ pre{background:color-mix(in srgb,var(--bg) 70%,transparent);border:1px solid var
 .split{display:grid;grid-template-columns:1fr 1fr;gap:14px}@media(max-width:800px){.split{grid-template-columns:1fr}}
 .lab{color:var(--mut);font-size:.8rem;margin:0 0 6px}
 #srcv{max-height:340px;overflow:auto;position:relative;white-space:pre}#srcv .dn{opacity:.4}
+#srcg{max-height:340px}
 mark{background:var(--a1);color:#06101a;border-radius:4px;padding:0 3px;box-shadow:0 0 14px var(--a1)}
 #tkw{max-height:340px}tr.new{animation:slide .4s both;background:color-mix(in srgb,var(--a1) 14%,transparent)}
 .nd{padding:2px 0 2px 10px;border-left:1px solid var(--line);font:.82rem 'JetBrains Mono',monospace;animation:pop .3s}.nd b{color:var(--a1)}.nd i{color:var(--a2);font-style:normal}
@@ -74,10 +82,10 @@ mark{background:var(--a1);color:#06101a;border-radius:4px;padding:0 3px;box-shad
 
 <h2 class="step"><span>2</span>Add your code</h2>
 <div class="card">
-  <textarea id="editor-c" data-lang="c" spellcheck="false" placeholder="Paste source code here, load a sample, or upload a file."></textarea>
-  <textarea id="editor-cpp" data-lang="cpp" spellcheck="false" placeholder="Paste source code here, load a sample, or upload a file."></textarea>
-  <textarea id="editor-python" data-lang="python" spellcheck="false" placeholder="Paste source code here, load a sample, or upload a file."></textarea>
-  <textarea id="editor-java" data-lang="java" spellcheck="false" placeholder="Paste source code here, load a sample, or upload a file."></textarea>
+  <div class="ed-box" data-lang="c"><div class="gutter" id="gutter-c">1</div><textarea id="editor-c" data-lang="c" spellcheck="false" placeholder="Paste source code here, load a sample, or upload a file."></textarea></div>
+  <div class="ed-box" data-lang="cpp"><div class="gutter" id="gutter-cpp">1</div><textarea id="editor-cpp" data-lang="cpp" spellcheck="false" placeholder="Paste source code here, load a sample, or upload a file."></textarea></div>
+  <div class="ed-box" data-lang="python"><div class="gutter" id="gutter-python">1</div><textarea id="editor-python" data-lang="python" spellcheck="false" placeholder="Paste source code here, load a sample, or upload a file."></textarea></div>
+  <div class="ed-box" data-lang="java"><div class="gutter" id="gutter-java">1</div><textarea id="editor-java" data-lang="java" spellcheck="false" placeholder="Paste source code here, load a sample, or upload a file."></textarea></div>
   <div class="row">
     <label class="btn"><input type="checkbox" id="fx" checked> Breach intro</label>
     <button class="btn" id="demo" title="Types a sample by itself and analyzes it">Auto demo</button>
@@ -115,11 +123,34 @@ java:`public class VulnerabilityDemo {\n    public static void main(String[] arg
 let lang=null,last=null,DEMO=0;
 const reportBuffer={c:null,cpp:null,python:null,java:null};
 const curEditor=()=>lang?document.getElementById('editor-'+lang):null;
+function lineNums(txt){
+  const n=Math.max(1,(txt||'').split('\n').length);
+  return Array.from({length:n},(_,i)=>i+1).join('\n');
+}
+function syncGutter(ed){
+  if(!ed)return;
+  const g=document.getElementById('gutter-'+ed.dataset.lang);
+  if(!g)return;
+  g.textContent=lineNums(ed.value);
+  g.scrollTop=ed.scrollTop;
+}
+document.querySelectorAll('textarea[data-lang]').forEach(ed=>{
+  ed.addEventListener('input',()=>syncGutter(ed));
+  ed.addEventListener('scroll',()=>{const g=document.getElementById('gutter-'+ed.dataset.lang);if(g)g.scrollTop=ed.scrollTop});
+  if(window.ResizeObserver)new ResizeObserver(()=>{const g=document.getElementById('gutter-'+ed.dataset.lang);if(g)g.style.height=ed.offsetHeight+'px'}).observe(ed);
+  syncGutter(ed);
+});
 function showEditor(l){
+  document.querySelectorAll('.ed-box[data-lang]').forEach(box=>{
+    const match=box.dataset.lang===l;
+    box.classList.toggle('on',match);
+    box.style.display=match?'flex':'none';
+  });
   document.querySelectorAll('textarea[data-lang]').forEach(t=>{
     const match=t.dataset.lang===l;
     t.classList.toggle('on',match);
     t.style.display=match?'block':'none';
+    if(match)syncGutter(t);
   });
 }
 function restoreLangReport(l){
@@ -138,17 +169,17 @@ function restoreLangReport(l){
 (()=>{const el=$('#hero'),t=el.textContent,ch='!<>-_\\/[]{}=+*^?#';let f=0;
  const id=setInterval(()=>{el.textContent=[...t].map((c,i)=>i<f/2?c:(c===' '?' ':ch[Math.random()*ch.length|0])).join('');if(++f>t.length*2+2){clearInterval(id);el.textContent=t}},38)})();
 document.querySelectorAll('.lang').forEach(c=>{tilt(c);const pick=()=>{document.querySelectorAll('.lang').forEach(x=>x.classList.remove('on'));c.classList.add('on');lang=c.dataset.l;showEditor(lang);blip(520);pulse();DEMO++;$('#err').innerHTML='';restoreLangReport(lang)};c.onclick=pick;c.onkeydown=e=>e.key==='Enter'&&pick()});
-$('#sample').onclick=()=>{const ed=curEditor();if(!ed)return showErr('Choose a language first.');ed.value=SAMPLES[lang];$('#err').innerHTML='';blip(700)};
+$('#sample').onclick=()=>{const ed=curEditor();if(!ed)return showErr('Choose a language first.');ed.value=SAMPLES[lang];syncGutter(ed);$('#err').innerHTML='';blip(700)};
 $('#demo').onclick=async()=>{if(!lang)return showErr('Choose a language first, then press Auto demo.');
- const my=++DEMO,t=SAMPLES[lang],ta=curEditor();if(!ta)return;ta.value='';$('#err').innerHTML='';
- for(let k=0;k<t.length&&my===DEMO;k+=2){ta.value+=t.slice(k,k+2);ta.scrollTop=1e5;if(k%6===0)blip(300+Math.random()*500);await new Promise(r=>setTimeout(r,16))}
+ const my=++DEMO,t=SAMPLES[lang],ta=curEditor();if(!ta)return;ta.value='';syncGutter(ta);$('#err').innerHTML='';
+ for(let k=0;k<t.length&&my===DEMO;k+=2){ta.value+=t.slice(k,k+2);ta.scrollTop=1e5;syncGutter(ta);if(k%6===0)blip(300+Math.random()*500);await new Promise(r=>setTimeout(r,16))}
  if(my===DEMO)$('#go').click()};
 addEventListener('keydown',e=>{if(e.ctrlKey&&e.key==='Enter')$('#go').click()});
-$('#clear').onclick=()=>{DEMO++;const ed=curEditor();if(ed)ed.value='';if(lang)reportBuffer[lang]=null;last=null;$('#res').style.display='none';$('#err').innerHTML='';stop();TT=[]};
+$('#clear').onclick=()=>{DEMO++;const ed=curEditor();if(ed){ed.value='';syncGutter(ed)}if(lang)reportBuffer[lang]=null;last=null;$('#res').style.display='none';$('#err').innerHTML='';stop();TT=[]};
 $('#file').onchange=e=>{const f=e.target.files[0];if(!f)return;const x=f.name.split('.').pop().toLowerCase();
  const m={c:'c',h:'cpp',hpp:'cpp',cpp:'cpp',cc:'cpp',cxx:'cpp',py:'python',java:'java'}[x];
  if(m){lang=m;document.querySelectorAll('.lang').forEach(c=>c.classList.toggle('on',c.dataset.l===m));showEditor(m);restoreLangReport(m)}
- const r=new FileReader();r.onload=()=>{const ed=curEditor();if(ed)ed.value=r.result};r.readAsText(f);e.target.value=''};
+ const r=new FileReader();r.onload=()=>{const ed=curEditor();if(ed){ed.value=r.result;syncGutter(ed)}};r.readAsText(f);e.target.value=''};
 const sfx=(()=>{let c;const A=()=>c||(c=new (window.AudioContext||window.webkitAudioContext)());
 const tone=(t,f,d,v,f2)=>{const a=A(),o=a.createOscillator(),g=a.createGain();o.type=t;o.frequency.setValueAtTime(f,a.currentTime);if(f2)o.frequency.linearRampToValueAtTime(f2,a.currentTime+d);g.gain.setValueAtTime(v,a.currentTime);g.gain.exponentialRampToValueAtTime(.0001,a.currentTime+d);o.connect(g).connect(a.destination);o.start();o.stop(a.currentTime+d)};
 return{tick:()=>tone('square',1200,.04,.03),beep:f=>tone('square',f,.12,.05),siren(){for(let k=0;k<4;k++)setTimeout(()=>tone('sawtooth',500,.4,.06,900),k*400);tone('sine',70,.8,.4,35)},chime(){[523,659,784,1047].forEach((f,k)=>setTimeout(()=>tone('sine',f,.8,.08),k*130))}}})();
@@ -222,7 +253,7 @@ $('#bPa').onclick=e=>{paused=!paused;e.target.textContent=paused?'Resume':'Pause
 applySet();
 function buildTabs(d,srcCode){const ed=curEditor(), code=typeof srcCode==='string'?srcCode:(ed?ed.value:'');
  TT=[{n:'Findings',h:fin(d.findings||[])}];
- if(d.tokens)TT.push({n:'Tokens ('+d.tokens.length+')',h:'<div class="split"><div><div class="lab">Source code being scanned</div><pre id="srcv"></pre></div><div><div class="lab">Tokens found</div><div class="card wrap" id="tkw"><table><thead><tr><th>#</th><th>Type</th><th>Value</th><th>Line</th></tr></thead><tbody id="tkb"></tbody></table></div></div></div>',r:()=>runTokens(d.tokens,code)});
+ if(d.tokens)TT.push({n:'Tokens ('+d.tokens.length+')',h:'<div class="split"><div><div class="lab">Source code being scanned</div><div class="out-code"><div class="gutter" id="srcg">1</div><pre id="srcv"></pre></div></div><div><div class="lab">Tokens found</div><div class="card wrap" id="tkw"><table><thead><tr><th>#</th><th>Type</th><th>Value</th><th>Line</th></tr></thead><tbody id="tkb"></tbody></table></div></div></div>',r:()=>runTokens(d.tokens,code)});
  if(d.ast&&Object.keys(d.ast).length)TT.push({n:'Syntax tree',h:'<div class="card wrap" id="ast"></div>',r:()=>runTree(d.ast)});
  if(d.symbols)TT.push({n:'Symbols',h:'<div class="card wrap"><table><thead><tr><th>Name</th><th>Type</th><th>Scope</th><th>Line</th><th>Initialized</th></tr></thead><tbody id="smb"></tbody></table></div>',r:()=>runSyms(d.symbols)});
  if(d.translations)TT.push({n:'Translations',h:'<div id="trn"></div>',r:()=>runTrans(d.translations)});
@@ -234,9 +265,9 @@ function show(k){cur=k;stop();document.querySelectorAll('.tab,.pane').forEach(x=
  if(t.done){narr('This phase is already built and stays here until you press Clear. Press Replay to watch it again.',1,1);return}
  narr(t.pos?'Continuing from step '+(t.pos+1)+'...':'Starting...',0,1);t.r()}
 const ms=n=>Math.max(25,Math.min(220,15000/n));
-function runTokens(t,code){const T=TT[cur],b=$('#tkb'),sv=$('#srcv');if(!T.pos){b.innerHTML='';sv.textContent=code;T.p=0}
+function runTokens(t,code){const T=TT[cur],b=$('#tkb'),sv=$('#srcv'),sg=$('#srcg');if(!T.pos){b.innerHTML='';sv.textContent=code;if(sg)sg.textContent=lineNums(code);sv.onscroll=()=>{if(sg)sg.scrollTop=sv.scrollTop};T.p=0}
  seq(t,(x,k,n)=>{const v=String(x.value),q=code.indexOf(v,T.p||0);
-  if(q>=0){sv.innerHTML='<span class="dn">'+esc(code.slice(0,q))+'</span><mark>'+esc(v)+'</mark>'+esc(code.slice(q+v.length));T.p=q+v.length;const m=sv.querySelector('mark');sv.scrollTop=m.offsetTop-110}
+  if(q>=0){sv.innerHTML='<span class="dn">'+esc(code.slice(0,q))+'</span><mark>'+esc(v)+'</mark>'+esc(code.slice(q+v.length));T.p=q+v.length;const m=sv.querySelector('mark');sv.scrollTop=m.offsetTop-110;if(sg)sg.scrollTop=sv.scrollTop}
   b.insertAdjacentHTML('beforeend',`<tr class="new"><td>${k+1}</td><td>${esc(x.type)}</td><td>${esc(x.value)}</td><td>${esc(x.line)}</td></tr>`);$('#tkw').scrollTop=1e5;
   narr(`Step ${k+1}/${n}: the lexer reads <b>${esc(v)}</b> on line ${esc(x.line)} and labels it <b>${esc(x.type)}</b>.`,k+1,n);tk()},ms(t.length),'lexical analysis')}
 function flat(o,k,d,out,par){const leaf=o===null||typeof o!=='object';out.push({k,d,leaf,par,v:leaf?o:(o.type||o.node_type||o.name||(Array.isArray(o)?'list of '+o.length:''))});if(!leaf)Object.entries(o).forEach(([a,c])=>flat(c,a,d+1,out,k))}
@@ -247,9 +278,9 @@ function runSyms(s){const b=$('#smb');if(!TT[cur].pos)b.innerHTML='';
  seq(s,(x,k,n)=>{b.insertAdjacentHTML('beforeend',`<tr class="new"><td>${esc(x.name)}</td><td>${esc(x.type)}</td><td>${esc(x.scope)}</td><td>${esc(x.line)}</td><td>${x.init?'yes':'<span class="bad">no</span>'}</td></tr>`);
   narr(`Step ${k+1}/${n}: the semantic analyzer finds <b>${esc(x.name)}</b> (${esc(x.type)}) in scope <b>${esc(x.scope)}</b> on line ${esc(x.line)}. `+(x.init?'It has a starting value.':'<span class="bad">It is never given a value, so reading it is unsafe.</span>'),k+1,n);tk()},700,'semantic analysis')}
 function runTrans(t){const el=$('#trn'),E=Object.entries(t);if(!TT[cur].pos)el.innerHTML='';
- seq(E,async([name,v],k,n)=>{const s=typeof v==='string'?v:(v&&(v.code||v.output))||JSON.stringify(v,null,2),h=document.createElement('div');h.dataset.k=k;const old=el.querySelector('[data-k="'+k+'"]');if(old)old.remove();h.innerHTML=`<h4 style="margin:6px 0">${esc(name)}</h4><pre></pre>`;el.appendChild(h);const pre=h.querySelector('pre');
+ seq(E,async([name,v],k,n)=>{const s=typeof v==='string'?v:(v&&(v.code||v.output))||JSON.stringify(v,null,2),h=document.createElement('div');h.dataset.k=k;const old=el.querySelector('[data-k="'+k+'"]');if(old)old.remove();h.innerHTML=`<h4 style="margin:6px 0">${esc(name)}</h4><div class="out-code"><div class="gutter">1</div><pre></pre></div>`;el.appendChild(h);const pre=h.querySelector('pre'),gut=h.querySelector('.gutter');pre.onscroll=()=>{gut.scrollTop=pre.scrollTop};
   narr(`Step ${k+1}/${n}: the transcompiler rewrites the program in <b>${esc(name)}</b>, statement by statement.`,k+1,n);
-  for(let q=0;q<s.length&&!skip;q+=4){pre.textContent=s.slice(0,q+4);if(q%16===0)tk();await wait(10)}pre.textContent=s},900,'translation')}
+  for(let q=0;q<s.length&&!skip;q+=4){const curTxt=s.slice(0,q+4);pre.textContent=curTxt;gut.textContent=lineNums(curTxt);if(q%16===0)tk();await wait(10)}pre.textContent=s;gut.textContent=lineNums(s)},900,'translation')}
 async function pdf(){const r=await fetch('/export-pdf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({findings:last.findings,language:last.language,risk_profile:last.risk_profile})});
  const u=URL.createObjectURL(await r.blob()),a=document.createElement('a');a.href=u;a.download=`secure_compiler_${last.language}_audit.pdf`;a.click();URL.revokeObjectURL(u)}
 </script>
