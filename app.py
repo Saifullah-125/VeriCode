@@ -21,6 +21,8 @@ from auth import init_db, User
 from security.secrets.value_re_analyzer import analyze_values_with_re
 from security.risk_evaluator import merge_and_deduplicate_findings, calculate_risk_profile
 
+from ai_agent import generate_remediation_suggestions, harden_translations
+
 app = Flask(__name__)
 
 _env_secret = os.environ.get("FLASK_SECRET_KEY")
@@ -244,6 +246,20 @@ def analyze():
             re_findings,
         )
         result["risk_profile"] = calculate_risk_profile(result["findings"])
+
+        result["ai_suggestions"] = generate_remediation_suggestions(
+            code,
+            result.get("language", normalized_lang),
+            result.get("findings", []),
+        )
+        hardened_trans, trans_security = harden_translations(
+            result.get("translations", {}),
+            result.get("language", normalized_lang),
+            result.get("findings", []),
+        )
+        result["translations"] = hardened_trans
+        result["translation_security"] = trans_security
+        
         result["workspace_meta"] = {
             "analyzed_language": result.get("language"),
             "line_count": len(code.splitlines()),
